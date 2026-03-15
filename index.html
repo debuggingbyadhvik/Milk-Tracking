@@ -187,7 +187,7 @@
 
         <div class="summary">
             <div>Total Liters: <span id="totalLiters">0</span>L</div>
-            <div class="grand-total" id="grandTotalText">₹0</div>
+            <div class="grand-total" id="grandTotalText" onclick="payWithUpiPrompt()" style="cursor:pointer;" title="Click to pay via UPI">₹0</div>
             <a id="upiLink" href="#" class="pay-btn" style="display:none;">PAY VIA UPI APP</a>
             <button class="clear-btn" onclick="clearMonthData()">Clear this month's data</button>
         </div>
@@ -208,7 +208,7 @@
     <script>
         const prices = { 0: 0, 1: 69, 2: 136, 3: 205, 4: 272 };
         const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        const UPI_ID = "9818215478@pthdfc";
+        let UPI_ID = localStorage.getItem("saved_upi_id") || "9818215478@pthdfc";
         const year = 2026;
 
         let selectedData = {};
@@ -318,6 +318,24 @@
                 upiBtn.style.display = 'block';
             } else {
                 upiBtn.style.display = 'none';
+            }
+        }
+
+        function payWithUpiPrompt() {
+            let totalAmountText = document.getElementById('grandTotalText').innerText.replace('₹', '');
+            let totalAmount = parseInt(totalAmountText) || 0;
+            if (totalAmount <= 0) {
+                alert("No amount to pay yet.");
+                return;
+            }
+
+            let inputUpi = prompt("Enter or Paste UPI ID:", UPI_ID);
+            if (inputUpi && inputUpi.trim() !== "") {
+                UPI_ID = inputUpi.trim();
+                localStorage.setItem("saved_upi_id", UPI_ID);
+                const upiUrl = `upi://pay?pa=${UPI_ID}&pn=MilkVendor&am=${totalAmount}&cu=INR&tn=MilkBill_${months[monthSelect.value]}`;
+                window.location.href = upiUrl;
+                calculateTotal(); // Update the button link with new UPI ID
             }
         }
 
