@@ -187,8 +187,9 @@
 
         <div class="summary">
             <div>Total Liters: <span id="totalLiters">0</span>L</div>
-            <div class="grand-total" id="grandTotalText" onclick="payWithUpiPrompt()" style="cursor:pointer;" title="Click to pay via UPI">₹0</div>
-            <a id="upiLink" href="#" class="pay-btn" style="display:none;">PAY VIA UPI APP</a>
+            <div class="grand-total" id="grandTotalText">₹0</div>
+            <a id="upiLink" href="#" class="pay-btn" style="display:none;" onclick="payWithUpiPrompt()">PAY VIA UPI APP</a>
+            <button class="clear-btn" onclick="updateUpiId()" style="display: block; width: 100%; margin-top: 15px; font-size: 14px; text-decoration: none; border: 1px solid #555; padding: 10px; border-radius: 8px; color: white; background: #333;">⚙️ Update/Set UPI ID</button>
             <button class="clear-btn" onclick="clearMonthData()">Clear this month's data</button>
         </div>
     </div>
@@ -321,21 +322,34 @@
             }
         }
 
+        function updateUpiId() {
+            let inputUpi = prompt("Enter or Paste your UPI ID:", UPI_ID);
+            if (inputUpi && inputUpi.trim() !== "") {
+                UPI_ID = inputUpi.trim();
+                localStorage.setItem("saved_upi_id", UPI_ID);
+                alert("UPI ID successfully saved as: " + UPI_ID);
+                calculateTotal(); // Update the payment link
+            }
+        }
+
         function payWithUpiPrompt() {
             let totalAmountText = document.getElementById('grandTotalText').innerText.replace('₹', '');
             let totalAmount = parseInt(totalAmountText) || 0;
             if (totalAmount <= 0) {
                 alert("No amount to pay yet.");
+                event.preventDefault();
                 return;
             }
 
-            let inputUpi = prompt("Enter or Paste UPI ID:", UPI_ID);
-            if (inputUpi && inputUpi.trim() !== "") {
-                UPI_ID = inputUpi.trim();
-                localStorage.setItem("saved_upi_id", UPI_ID);
-                const upiUrl = `upi://pay?pa=${UPI_ID}&pn=MilkVendor&am=${totalAmount}&cu=INR&tn=MilkBill_${months[monthSelect.value]}`;
-                window.location.href = upiUrl;
-                calculateTotal(); // Update the button link with new UPI ID
+            let confirmUpi = confirm(`Pay ₹${totalAmount} to UPI ID:\n${UPI_ID}\n\nClick OK to open UPI app, or Cancel to change your UPI ID.`);
+            if (!confirmUpi) {
+                event.preventDefault();
+                updateUpiId();
+                if (UPI_ID) {
+                    // Update and navigate
+                    const upiUrl = `upi://pay?pa=${UPI_ID}&pn=MilkVendor&am=${totalAmount}&cu=INR&tn=MilkBill_${months[monthSelect.value]}`;
+                    window.location.href = upiUrl;
+                }
             }
         }
 
