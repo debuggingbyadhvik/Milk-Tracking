@@ -182,6 +182,7 @@
         <div class="brand">Amul Full Cream Milk</div>
 
         <select id="monthSelect" onchange="initCalendar()"></select>
+        <div style="text-align:center; font-size: 13px; color: #666; margin-bottom: 15px;">👇 Tap a day to add 1L. Long-press (or right-click) to clear.</div>
 
         <div id="calendarGrid" class="calendar-grid"></div>
 
@@ -194,26 +195,17 @@
         </div>
     </div>
 
-    <div id="qtyModal" class="modal">
-        <div class="modal-content">
-            <h3 id="modalDateTitle">Select Quantity</h3>
-            <button class="qty-btn" onclick="setQuantity(1)">1 Liter (₹69)</button>
-            <button class="qty-btn" onclick="setQuantity(2)">2 Liters (₹136)</button>
-            <button class="qty-btn" onclick="setQuantity(3)">3 Liters (₹205)</button>
-            <button class="qty-btn" onclick="setQuantity(4)">4 Liters (₹272)</button>
-            <button class="qty-btn cancel" onclick="setQuantity(0)">No Milk (Reset)</button>
-            <button class="qty-btn" style="background:#eee" onclick="closeModal()">Close</button>
-        </div>
-    </div>
-
     <script>
-        const prices = { 0: 0, 1: 69, 2: 136, 3: 205, 4: 272 };
+        function getPriceForQuantity(qty) {
+            if (!qty || qty <= 0) return 0;
+            return Math.floor(qty / 2) * 136 + (qty % 2) * 69;
+        }
+
         const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         let UPI_ID = localStorage.getItem("saved_upi_id") || "9818215478@pthdfc";
         const year = 2026;
 
         let selectedData = {};
-        let activeDay = null;
 
         const monthSelect = document.getElementById('monthSelect');
         months.forEach((m, i) => {
@@ -256,31 +248,58 @@
                 }
 
                 dayEl.innerHTML = `<span>${d}</span><div class="qty-label" id="label-${d}">${qtyLabel}</div>`;
-                dayEl.onclick = () => openModal(d);
+                
+                let touchTimer;
+                let didLongPress = false;
+                
+                dayEl.addEventListener('touchstart', () => {
+                    didLongPress = false;
+                    touchTimer = setTimeout(() => {
+                        setQuantity(d, 0);
+                        didLongPress = true;
+                        if (navigator.vibrate) navigator.vibrate(50);
+                    }, 600);
+                }, {passive: true});
+                
+                dayEl.addEventListener('touchend', () => {
+                    if (touchTimer) clearTimeout(touchTimer);
+                });
+                
+                dayEl.addEventListener('touchmove', () => {
+                    if (touchTimer) clearTimeout(touchTimer);
+                });
+
+                dayEl.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    setQuantity(d, 0);
+                    didLongPress = true;
+                };
+
+                dayEl.onclick = (e) => {
+                    if (didLongPress) {
+                        didLongPress = false;
+                        return;
+                    }
+                    let currentQty = selectedData[d] || 0;
+                    setQuantity(d, currentQty + 1);
+                };
+                
                 grid.appendChild(dayEl);
             }
             calculateTotal();
         }
 
-        function openModal(day) {
-            activeDay = day;
-            document.getElementById('modalDateTitle').innerText = `${day} ${months[monthSelect.value]}`;
-            document.getElementById('qtyModal').style.display = 'block';
-        }
-
-        function closeModal() { document.getElementById('qtyModal').style.display = 'none'; }
-
-        function setQuantity(qty) {
+        function setQuantity(day, qty) {
             const month = monthSelect.value;
-            const dayEl = document.getElementById(`day-${activeDay}`);
-            const label = document.getElementById(`label-${activeDay}`);
+            const dayEl = document.getElementById(`day-${day}`);
+            const label = document.getElementById(`label-${day}`);
 
             if (qty > 0) {
-                selectedData[activeDay] = qty;
+                selectedData[day] = qty;
                 dayEl.classList.add('has-milk');
                 label.innerText = qty + 'L';
             } else {
-                delete selectedData[activeDay];
+                delete selectedData[day];
                 dayEl.classList.remove('has-milk');
                 label.innerText = '';
             }
@@ -288,7 +307,6 @@
             // --- SAVE TO LOCAL STORAGE ---
             localStorage.setItem(`milk_data_${year}_${month}`, JSON.stringify(selectedData));
 
-            closeModal();
             calculateTotal();
         }
 
@@ -306,7 +324,7 @@
             for (let day in selectedData) {
                 const qty = selectedData[day];
                 totalLiters += qty;
-                totalAmount += prices[qty];
+                totalAmount += getPriceForQuantity(qty);
             }
 
             document.getElementById('totalLiters').innerText = totalLiters;
